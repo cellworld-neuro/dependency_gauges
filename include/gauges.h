@@ -92,7 +92,7 @@ namespace gauges{
 
         friend struct Gauges;
 
-        bool need_refresh;
+        bool need_refresh{};
     protected:
         std::string left_bar_char = "[";
         std::string right_bar_char  = "]";
@@ -122,11 +122,6 @@ namespace gauges{
         Gauge &new_gauge(){
             return add_gauge(Gauge());
         }
-        ~Gauges() {
-            if (!gauges.empty()) {
-                add_gauge_lines(1);
-            }
-        }
         void auto_refresh_start(unsigned int interval){
             auto_refresh_thread = std::thread([this, interval](){
                 auto_refresh = true;
@@ -147,34 +142,41 @@ namespace gauges{
             gs.mtx.lock();
             gs.add_gauge_lines(gs.new_gauges);
             gs.new_gauges = 0;
-            for (int i = 0; i<gs.gauges.size(); i++){
+            for (int i = 0; i < gs.gauges.size(); i++){
                 auto &g = gs.gauges[i];
-                if (g.need_refresh){
+                if (gs.first_output || g.need_refresh){
                     gs.move_to_gauge_line(i);
                     os << g;
                 }
             }
+            gs.move_to_gauge_line(gs.gauges.size() - 1);
+            os << std::endl;
+            gs.current_gauge_line++;
+            gs.first_output = false;
             gs.mtx.unlock();
             return os;
         };
+
+        std::vector<Gauge> gauges;
+
     private:
         void move_to_gauge_line(unsigned int i){
             if (i==current_gauge_line) return;
             if (i < current_gauge_line) {
-                move_up(current_gauge_line-i);
+                move_up(current_gauge_line - i);
             } else {
-                move_down(i-current_gauge_line);
+                move_down(i - current_gauge_line);
             }
             current_gauge_line = i;
         }
         void add_gauge_lines(unsigned int c){
-            if (c==0) return;
-            move_to_gauge_line(gauges.size()-c );
+            if ( c == 0 ) return;
+            move_to_gauge_line(gauges.size() - c );
             for (unsigned int i=0;i<c;i++) std::cout << std::endl;
-            current_gauge_line = gauges.size() - 1;
+            current_gauge_line = gauges.size();
         }
-        unsigned int current_gauge_line = 0;
-        std::vector<Gauge> gauges;
+        bool first_output = true;
+        unsigned int current_gauge_line{0};
         unsigned int new_gauges{};
         std::mutex mtx;
         std::thread auto_refresh_thread;
