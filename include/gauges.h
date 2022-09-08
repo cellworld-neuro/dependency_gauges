@@ -140,6 +140,14 @@ namespace gauges{
 
         friend std::ostream & operator << (std::ostream & os, Gauges &gs){
             gs.mtx.lock();
+            bool need_refresh = false;
+            for (auto &g:gs.gauges){
+                if (g.need_refresh) {
+                    need_refresh = true;
+                    break;
+                }
+            }
+            if (!need_refresh) return os;
             gs.add_gauge_lines(gs.new_gauges);
             gs.new_gauges = 0;
             for (int i = 0; i < gs.gauges.size(); i++){
